@@ -1,3 +1,12 @@
+<<<<<<< HEAD
 env/
 __pycache__ /
 db.sqlite3
+=======
+__pycache__/
+node_modules/
+db.sqlite3
+*.pyc
+.env
+*.sqlite3
+>>>>>>> module-5
