@@ -1,13 +1,24 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from tasks.forms import  TaskModelForm, TaskDetailModelForm
-from tasks.models import Employee, Task, TaskDetail, Project
+from tasks.models import Task, TaskDetail, Project
 from datetime import date
 from django.db.models import Q, Count, Max, Min, Avg
 from django.contrib import messages
-# Create your views
+from django.contrib.auth.decorators import user_passes_test, login_required, permission_required
+from users.views import is_admin
 
 
+
+# Create your views here.
+def is_manager(user):
+    return user.groups.filter(name='Manager').exists()
+
+def is_employee(user):
+    return user.groups.filter(name='Manager').exists()
+
+
+@user_passes_test(is_manager, login_url='no-permission')
 def manager_dashboard(request):
     type = request.GET.get('type', 'all')
     
@@ -40,10 +51,12 @@ def manager_dashboard(request):
     return render(request, "dashboard/manager-dashboard.html", context)
     
 
-
-def user_dashboard(request):
+@user_passes_test(is_employee)
+def employee_dashboard(request):
     return render(request, "dashboard/user-dashboard.html")
 
+@login_required
+@permission_required("tasks.add_task", login_url='no-permission')
 
 def create_task(request):
     task_form=TaskModelForm()
@@ -52,7 +65,7 @@ def create_task(request):
     
     if request.method == "POST":
         task_form = TaskModelForm(request.POST)
-        task_detail_form = TaskDetailModelForm(request.POST)
+        task_detail_form = TaskDetailModelForm(request.POST, request.FILES)
         if task_form.is_valid() and task_detail_form.is_valid():
             
             task = task_form.save()
@@ -68,7 +81,8 @@ def create_task(request):
     context = {"task_form": task_form, "task_detail_form": task_detail_form}
     return render(request, "task_form.html", context)
         
-
+@login_required
+@permission_required("tasks.change_task", login_url='no-permission')
 def update_task(request, id):
     task = Task.objects.get(id=id)
     task_form = TaskModelForm(instance=task) 
@@ -78,7 +92,7 @@ def update_task(request, id):
     if request.method == "POST":
         task_form = TaskModelForm(request.POST, instance=task)
         task_detail_form = TaskDetailModelForm(
-            request.POST, instance=task.details)
+            request.POST,request.FILES, instance=task.details)
 
         if task_form.is_valid() and task_detail_form.is_valid():
 
@@ -94,7 +108,8 @@ def update_task(request, id):
     context = {"task_form": task_form, "task_detail_form": task_detail_form}
     return render(request, "task_form.html", context)
 
-
+@login_required
+@permission_required("tasks.delete_task", login_url='no-permission')
 def delete_task(request, id):
     if request.method == 'POST':
         task = Task.objects.get(id=id)
@@ -105,11 +120,39 @@ def delete_task(request, id):
         messages.error(request, 'Something went wrong')
         return redirect('manager-dashboard')
 
-
+@login_required
+@permission_required("tasks.view_task", login_url='no-permission')
 def view_task(request):
     projects = Project.objects.annotate(
         num_task=Count('task')).order_by('num_task')
     return render(request, "show_task.html", {"projects": projects})
+
+@login_required
+@permission_required("tasks.view_task", login_url='no-permission')
+def task_details(request, task_id):
+    task = Task.objects.get(id=task_id)
+    status_choices = Task.STATUS_CHOICES
+
+    if request.method == 'POST':
+        selected_status = request.POST.get('task_status')
+        print(selected_status)
+        task.status = selected_status
+        task.save()
+        return redirect('task-details', task.id)
+
+    return render(request, 'task_details.html', {"task": task, 'status_choices': status_choices})
+
+
+@login_required
+def dashboard(request):
+    if is_manager(request.user):
+        return redirect('manager-dashboard')
+    elif is_employee(request.user):
+        return redirect('user-dashboard')
+    elif is_admin(request.user):
+        return redirect('admin-dashboard')
+
+    return redirect('no-permission')
     
     
 

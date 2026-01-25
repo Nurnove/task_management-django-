@@ -1,12 +1,22 @@
-<<<<<<< HEAD
-env/
-__pycache__ /
-db.sqlite3
-=======
+
+# Python cache / bytecode
 __pycache__/
-node_modules/
-db.sqlite3
 *.pyc
-.env
+*.pyo
+*.pyd
+
+# Virtual environments
+env/
+task_env/
+
+# Database
+db.sqlite3
 *.sqlite3
->>>>>>> module-5
+
+# Node.js
+node_modules/
+
+# Environment variables
+.env
+
+
